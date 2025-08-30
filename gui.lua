@@ -10,6 +10,7 @@ function StorageGui.new(index, container)
   self.index = index
   self.container = container
   self.isLoading = false
+  self.isError = false
   self.query = ""
   self.searchResults = {}
   self.chosenResults = {}
@@ -28,6 +29,8 @@ function StorageGui:draw()
   term.setCursorPos(1, 1)
   if self.isLoading then
     term.setBackgroundColor(colors.yellow)
+  elseif self.isError then
+    term.setBackgroundColor(colors.red)
   else
     term.setBackgroundColor(colors.lightGray)
   end
@@ -145,11 +148,11 @@ function StorageGui:processEvent(eventData)
     self.index:export(self.container, selected.key)
     self.isLoading = false
   elseif event == "redstone" then
-    local newChestOpen = redstone.getInput("right")
+    local newChestOpen = redstone.getInput("left")
     if self.chestOpen and not newChestOpen then
       self.isLoading = true
       self:draw()
-      self.index:import(self.container)
+      self.isError = not pcall(self.index.import, self.index, self.container)
       self.isLoading = false
       self:updateQuery()
     end

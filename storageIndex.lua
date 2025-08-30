@@ -73,11 +73,18 @@ function StorageIndex:loadItems()
 end
 
 function StorageIndex:import(container)
-  for slot, short in pairs(container.list()) do
+  local list = container.list()
+  if list == nil then
+    error("Could not access container")
+  end
+  for slot, short in pairs(list) do
     if short == nil then
       goto emptyCell
     end
     local detail = container.getItemDetail(slot)
+    if detail == nil then
+      error("Could not get item detail for slot " .. tostring(slot))
+    end
 
     local count = detail.count
     local key = getItemKey(detail)
