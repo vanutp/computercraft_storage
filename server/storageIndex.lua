@@ -1,17 +1,18 @@
-local utils = require 'utils'
-local StorageCell = require 'storageCell'
-local LinkedList = require 'linkedList'
+local utils = require 'lib/utils'
+local messages = require 'lib/messages'
+local StorageCell = require 'server/storageCell'
+local LinkedList = require 'lib/linkedList'
 
 local StorageIndex = {}
 StorageIndex.__index = StorageIndex
 
-function getItemKey(item)
+local function getItemKey(item)
   local nbt = item.nbt or ""
   local damage = tostring(item.damage or -1)
   return item.name .. "|" .. nbt .. "|" .. damage
 end
 
-function getItemMeta(item)
+local function getItemMeta(item)
   local res = utils.copyFields(
     item,
     { 'name', 'displayName', 'count' }
@@ -31,10 +32,56 @@ function StorageIndex.new(blacklist)
   local self = {}
   setmetatable(self, StorageIndex)
 
-  self.cells = StorageCell.allExcept(blacklist)
+  self.blacklist = blacklist
+  self.cells = {}
   self:loadItems()
+  rednet.broadcast(messages.serverInit())
+  self.startupTimerId = os.startTimer(1)
 
   return self
+end
+
+function StorageIndex:init()
+  self.cells = StorageCell.allExcept(self.blacklist)
+  self:loadItems()
+  rednet.broadcast(messages.serverIndexFull(
+    self.usedCellCount,
+    self.totalCellCount,
+    self.metadata
+  ))
+  os.queueEvent("localUpdate")
+end
+
+function StorageIndex:onEvent(eventData)
+  if eventData[1] == "rednet_message" then
+    self:onMessage(eventData[3])
+  elseif eventData[1] == "timer" then
+    if eventData[2] == self.startupTimerId then
+      self:init()
+    end
+  end
+end
+
+function StorageIndex:onMessage(message)
+  if message.type == "clientInit" then
+    for _, name in ipairs(message.blacklist) do
+      table.insert(self.blacklist, name)
+    end
+  elseif message.type == "clientImportRequest" then
+    -- TODO: cache peripherals?
+    local container = peripheral.wrap(message.fromContainer)
+    self:import(container)
+  elseif message.type == "clientExportRequest" then
+    local container = peripheral.wrap(message.toContainer)
+    self:export(container, message.itemKey)
+  end
+end
+
+function StorageIndex:updateCellCounts()
+  self.usedCellCount
+    = utils.sum(self.fullCells, function(el) return el.length end)
+    + utils.sum(self.nonFullCells, function(el) return el.length end)
+  self.totalCellCount = #self.cells
 end
 
 function StorageIndex:loadItems()
@@ -70,6 +117,8 @@ function StorageIndex:loadItems()
       cells[key]:push(cell)
     end
   end
+
+  self:updateCellCounts()
 end
 
 function StorageIndex:import(container)
@@ -148,6 +197,14 @@ function StorageIndex:import(container)
 
     ::emptyCell::
   end
+
+  self:updateCellCounts()
+  -- TODO: delta
+  rednet.broadcast(messages.serverIndexFull(
+    self.usedCellCount,
+    self.totalCellCount,
+    self.metadata
+  ))
 end
 
 function StorageIndex:export(container, key)
@@ -188,6 +245,13 @@ function StorageIndex:export(container, key)
       self.emptyCells:push(cell)
     end
   end
+
+  self:updateCellCounts()
+  rednet.broadcast(messages.serverIndexFull(
+    self.usedCellCount,
+    self.totalCellCount,
+    self.metadata
+  ))
 end
 
 return StorageIndex

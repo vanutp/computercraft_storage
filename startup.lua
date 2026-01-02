@@ -1,2 +1,2 @@
-shell.setDir("disk")
-shell.execute("main.lua")
+shell.setDir("storage")
+shell.execute("runClient.lua")

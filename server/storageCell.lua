@@ -1,5 +1,4 @@
-local pretty = require 'cc.pretty'
-local utils = require 'utils'
+local utils = require 'lib/utils'
 
 local StorageCell = {}
 StorageCell.__index = StorageCell
@@ -7,12 +6,12 @@ StorageCell.__index = StorageCell
 function StorageCell.new(container, slot)
   local self = {}
   setmetatable(self, StorageCell)
-  
+
   self.container = container
   self.slot = slot
-  
+
   self:loadDetail()
-  
+
   return self
 end
 

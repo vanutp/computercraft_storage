@@ -1,4 +1,4 @@
-local utils = require 'utils'
+local utils = require 'lib/utils'
 
 local StorageGui = {}
 StorageGui.__index = StorageGui
@@ -41,11 +41,7 @@ function StorageGui:draw()
   term.setBackgroundColor(colors.black)
   term.setTextColor(colors.white)
 
-  local usedCellCount
-    = utils.sum(self.index.fullCells, function(el) return el.length end)
-    + utils.sum(self.index.nonFullCells, function(el) return el.length end)
-  local totalCellCount = usedCellCount + self.index.emptyCells.length
-  local usageString = " " .. tostring(usedCellCount) .. "/" .. tostring(totalCellCount)
+  local usageString = " " .. tostring(self.index.usedCellCount) .. "/" .. tostring(self.index.totalCellCount)
 
   term.setCursorPos(w - string.len(usageString) + 1, 1)
   term.setBackgroundColor(colors.blue)
@@ -76,7 +72,7 @@ function StorageGui:draw()
   term.setCursorBlink(true)
 end
 
-function matchItem(item, query)
+local function matchItem(item, query)
   local q = string.lower(query)
   local isTagQuery = string.sub(q, 1, 1) == "#"
   if isTagQuery then
@@ -102,9 +98,11 @@ function StorageGui:updateQuery()
   end)
 end
 
-function StorageGui:processEvent(eventData)
+function StorageGui:onEvent(eventData)
   local event = eventData[1]
-  if event == "char" then
+  if event == "localUpdate" then
+    self:updateQuery()
+  elseif event == "char" then
     self.query = self.query .. eventData[2]
     self:updateQuery()
   elseif event == "key" then
@@ -167,14 +165,8 @@ function StorageGui:processEvent(eventData)
       self.scrollPos = #self.searchResults - 1
     end
   end
-end
 
-function StorageGui:run()
-  self:updateQuery()
-  while true do
-    self:draw()
-    self:processEvent({os.pullEvent()})
-  end
+  self:draw()
 end
 
 return StorageGui
