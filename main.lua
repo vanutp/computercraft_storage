@@ -7,6 +7,7 @@ term.setCursorPos(1, 1)
 print("Indexing...")
 
 local containerName = "minecraft:trapped_chest_1"
+local containerPos = "right"
 
 index = StorageIndex.new {
   containerName,
@@ -19,5 +20,5 @@ index = StorageIndex.new {
 }
 cont = peripheral.wrap(containerName)
 
-gui = StorageGui.new(index, cont)
+gui = StorageGui.new(index, cont, containerPos)
 gui:run()

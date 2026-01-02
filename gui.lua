@@ -3,12 +3,13 @@ local utils = require 'utils'
 local StorageGui = {}
 StorageGui.__index = StorageGui
 
-function StorageGui.new(index, container)
+function StorageGui.new(index, container, containerPos)
   local self = {}
   setmetatable(self, StorageGui)
 
   self.index = index
   self.container = container
+  self.containerPos = containerPos
   self.isLoading = false
   self.isError = false
   self.query = ""
@@ -148,7 +149,7 @@ function StorageGui:processEvent(eventData)
     self.index:export(self.container, selected.key)
     self.isLoading = false
   elseif event == "redstone" then
-    local newChestOpen = redstone.getInput("left")
+    local newChestOpen = redstone.getInput(self.containerPos)
     if self.chestOpen and not newChestOpen then
       self.isLoading = true
       self:draw()
