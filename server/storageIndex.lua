@@ -1,6 +1,6 @@
 local utils = require 'lib/utils'
 local messages = require 'lib/messages'
-local StorageCell = require 'server/storageCell'
+local StorageCell = require 'lib/storageCell'
 local LinkedList = require 'lib/linkedList'
 
 local StorageIndex = {}
@@ -32,40 +32,90 @@ function StorageIndex.new(blacklist)
   local self = {}
   setmetatable(self, StorageIndex)
 
-  self.blacklist = blacklist
+  self.clients = {}
+  self.remainingCellPackets = 0
+  self.blacklist = {
+    "top",
+    "right",
+    "left",
+    "bottom",
+    "back",
+    "front",
+  }
+  for _, name in ipairs(blacklist) do
+    table.insert(self.blacklist, name)
+  end
   self.cells = {}
   self:loadItems()
   rednet.broadcast(messages.serverInit())
-  self.startupTimerId = os.startTimer(1)
+  self.startupTimerId = os.startTimer(2)
 
   return self
 end
 
-function StorageIndex:init()
-  self.cells = StorageCell.allExcept(self.blacklist)
+function StorageIndex:startIndexing()
+  term.clear()
+  term.setCursorPos(1, 1)
+  print("Indexing...")
+  utils.log("Starting indexing with " .. tostring(#self.clients) .. " clients")
+  self.cells = {}
+  local containerNames = StorageCell.getContainerNames(self.blacklist)
+  local chunkSize = math.floor(#containerNames / (#self.clients + 1))
+  self.remainingCellPackets = 0
+  for i, client in ipairs(self.clients) do
+    local chunk = {}
+    for j = (i - 1) * chunkSize + 1, math.min(i * chunkSize, #containerNames) do
+      table.insert(chunk, containerNames[j])
+    end
+    rednet.send(client, messages.serverGetCells(chunk))
+    self.remainingCellPackets = self.remainingCellPackets + 1
+  end
+  for i = #self.clients * chunkSize + 1, #containerNames do
+    local cells = StorageCell.cellsFromContainer(containerNames[i])
+    for _, cell in ipairs(cells) do
+      table.insert(self.cells, cell)
+    end
+  end
+  utils.log("Indexed self")
+end
+
+function StorageIndex:finishIndexing()
+  utils.log("Finishing indexing")
   self:loadItems()
+  utils.log("Loaded items")
   rednet.broadcast(messages.serverIndexFull(
     self.usedCellCount,
     self.totalCellCount,
     self.metadata
   ))
-  os.queueEvent("localUpdate")
+  utils.log("Broadcasted full index")
+  os.queueEvent("localUpdate", 1)
 end
 
 function StorageIndex:onEvent(eventData)
+  utils.log("event: " .. textutils.serialize(eventData))
   if eventData[1] == "rednet_message" then
-    self:onMessage(eventData[3])
-  elseif eventData[1] == "timer" then
-    if eventData[2] == self.startupTimerId then
-      self:init()
-    end
+    self:onMessage(eventData[2], eventData[3])
+  elseif eventData[1] == "timer" and eventData[2] == self.startupTimerId then
+    self:startIndexing()
   end
 end
 
-function StorageIndex:onMessage(message)
+function StorageIndex:onMessage(sender, message)
   if message.type == "clientInit" then
+    table.insert(self.clients, sender)
     for _, name in ipairs(message.blacklist) do
       table.insert(self.blacklist, name)
+    end
+  elseif message.type == "clientCells" then
+    for _, cellData in ipairs(message.cells) do
+      local cell = StorageCell.deserialize(cellData)
+      table.insert(self.cells, cell)
+    end
+    self.remainingCellPackets = self.remainingCellPackets - 1
+    utils.log("Received cell packet " .. textutils.serialize(message.cells) .. " from " .. tostring(sender) .. ", " .. tostring(self.remainingCellPackets) .. " remaining")
+    if self.remainingCellPackets == 0 then
+      self:finishIndexing()
     end
   elseif message.type == "clientImportRequest" then
     -- TODO: cache peripherals?

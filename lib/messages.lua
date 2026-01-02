@@ -17,6 +17,20 @@ return {
       blacklist = blacklist,
     }
   end,
+  -- serverGetCells(containerNames: list[str])
+  serverGetCells = function(containerNames)
+    return {
+      type = "serverGetCells",
+      containerNames = containerNames,
+    }
+  end,
+  -- clientCells(cells: list[StorageCell])
+  clientCells = function(cells)
+    return {
+      type = "clientCells",
+      cells = cells,
+    }
+  end,
   -- ItemMeta(name: string, displayName: str, count: int, tags: list[string], key: str)
   -- serverIndexFull(usedCellCount: int, totalCellCount: int, metadata: map[str, ItemMeta])
   serverIndexFull = function (usedCellCount, totalCellCount, metadata)

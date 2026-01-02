@@ -1,3 +1,5 @@
+package.path = "/storage/?.lua;" .. package.path
+
 local StorageIndex = require 'server/storageIndex'
 local StorageGui = require 'client/gui'
 local EventBus = require 'lib/eventBus'
@@ -7,18 +9,8 @@ local containerPos = "right"
 
 peripheral.find("modem", rednet.open)
 term.clear()
-term.setCursorPos(1, 1)
-print("Indexing...")
 
-local index = StorageIndex.new {
-  containerName,
-  "top",
-  "right",
-  "left",
-  "bottom",
-  "back",
-  "front",
-}
+local index = StorageIndex.new { containerName }
 local cont = peripheral.wrap(containerName)
 local gui = StorageGui.new(index, cont, containerPos)
 

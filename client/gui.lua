@@ -18,6 +18,9 @@ function StorageGui.new(index, container, containerPos)
   self.scrollPos = 0
   self.ctrlDown = false
   self.chestOpen = false
+  self.initProgress = 0
+
+  self:draw()
 
   return self
 end
@@ -28,6 +31,12 @@ function StorageGui:draw()
   term.setTextColor(colors.white)
   term.clear()
   term.setCursorPos(1, 1)
+
+  if self.initProgress < 1 then
+    term.write("Waiting for server...")
+    return
+  end
+
   if self.isLoading then
     term.setBackgroundColor(colors.yellow)
   elseif self.isError then
@@ -84,10 +93,9 @@ local function matchItem(item, query)
   end
 end
 
-function StorageGui:updateQuery()
+function StorageGui:updateQuery(resetScrollPos)
   self.chosenResults = {}
   self.searchResults = {}
-  self.scrollPos = 0
   for _, item in pairs(self.index.metadata) do
     if matchItem(item, self.query) then
       table.insert(self.searchResults, item)
@@ -96,12 +104,18 @@ function StorageGui:updateQuery()
   table.sort(self.searchResults, function(a, b)
     return a.count > b.count
   end)
+  if resetScrollPos or self.scrollPos > #self.searchResults - 1 then
+    self.scrollPos = 0
+  end
 end
 
 function StorageGui:onEvent(eventData)
   local event = eventData[1]
   if event == "localUpdate" then
     self:updateQuery()
+    if eventData[2] then
+      self.initProgress = eventData[2]
+    end
   elseif event == "char" then
     self.query = self.query .. eventData[2]
     self:updateQuery()
@@ -110,13 +124,13 @@ function StorageGui:onEvent(eventData)
     if self.ctrlDown then
       if key == keys.x or key == keys.backspace or key == keys.capsLock then
         self.query = ""
-        self:updateQuery()
+        self:updateQuery(true)
       end
     elseif key == keys.leftCtrl then
       self.ctrlDown = true
     elseif key == keys.backspace or key == keys.capsLock then
       self.query = self.query:sub(1, -2)
-      self:updateQuery()
+      self:updateQuery(true)
     end
   elseif event == "key_up" then
     local key = eventData[2]

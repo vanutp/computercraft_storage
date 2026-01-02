@@ -10,7 +10,7 @@ return {
   end,
 
   sContains = function(string, sub)
-    return string.find(string, sub) ~= nil
+    return string.find(string, sub, 1, true) ~= nil
   end,
 
   copyFields = function(tbl, fields)
@@ -39,5 +39,10 @@ return {
       res = res + f(el)
     end
     return res
+  end,
+
+  log = function(text)
+    local computerId = tostring(os.getComputerID())
+    http.get("https://logbox.vanutp.dev/?log=" .. textutils.urlEncode(computerId .. ": " .. text))
   end,
 }
