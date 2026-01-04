@@ -1,3 +1,5 @@
+package.path = "/storage/?.lua;" .. package.path
+
 local StorageIndex = require 'server/storageIndex'
 local EventBus = require 'lib/eventBus'
 
