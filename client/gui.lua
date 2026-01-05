@@ -59,7 +59,7 @@ function StorageGui:draw()
     end
     term.setCursorPos(1, drawY)
 
-    if utils.contains(self.chosenResults, item.key) then
+    if self.chosenResults[item.key] then
       term.setBackgroundColor(colors.green)
     else
       term.setBackgroundColor(colors.black)
@@ -67,10 +67,10 @@ function StorageGui:draw()
     term.setTextColor(colors.white)
     term.write(item.displayName .. " (" .. tostring(item.count) .. ")")
     
-    term.setCursorPos(w - 3 + 1, drawY)
+    term.setCursorPos(w - 3, drawY)
     term.setBackgroundColor(colors.lightBlue)
     term.setTextColor(colors.black)
-    term.write("14*")
+    term.write(" 14*")
 
     ::nextResult::
   end
@@ -145,22 +145,24 @@ function StorageGui:onEvent(eventData)
       return
     end
     local selected = self.searchResults[resultIdx]
-    if utils.contains(self.chosenResults, selected.key) then
+    local w, h = term.getSize()
+    local count
+    if x == w - 2 then
+      count = 64 * 1
+    elseif x == w - 1 then
+      count = 64 * 4
+    elseif x == w then
+      count = math.huge
+    else
+      count = 64 * 8
+    end
+    if self.chosenResults[selected.key] or 0 >= count then
       return
     end
     self.isLoading = true
-    table.insert(self.chosenResults, selected.key)
+    self.chosenResults[selected.key] = count
     self:draw()
-    local w, h = term.getSize()
-    if x == w - 2 then
-      self.index:export(self.container, selected.key, 64 * 1)
-    elseif x == w - 1 then
-      self.index:export(self.container, selected.key, 64 * 4)
-    elseif x == w then
-      self.index:export(self.container, selected.key)
-    else
-      self.index:export(self.container, selected.key, 8)
-    end
+    self.index:export(self.container, selected.key, count)
     self.isLoading = false
   elseif event == "redstone" then
     local newChestOpen = redstone.getInput(self.containerPos)
