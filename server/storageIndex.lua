@@ -73,7 +73,7 @@ function StorageIndex:onMessage(message)
     self:import(container)
   elseif message.type == "clientExportRequest" then
     local container = peripheral.wrap(message.toContainer)
-    self:export(container, message.itemKey)
+    self:export(container, message.itemKey, message.count)
   end
 end
 
@@ -207,7 +207,8 @@ function StorageIndex:import(container)
   ))
 end
 
-function StorageIndex:export(container, key)
+function StorageIndex:export(container, key, count)
+  local remaining = count or (64 * 54)
   local itemMeta = self.metadata[key]
   if self.fullCells[key] == nil then
     goto nonFull
@@ -226,12 +227,17 @@ function StorageIndex:export(container, key)
       node:remove()
       self.nonFullCells[key]:push(cell)
     end
+
+    remaining = remaining - nMoved
+    if remaining <= 0 then
+      goto done
+    end
   end
 
   ::nonFull::
 
   if self.nonFullCells[key] == nil then
-    return
+    goto done
   end
 
   for node in self.nonFullCells[key]:iter() do
@@ -244,7 +250,14 @@ function StorageIndex:export(container, key)
       node:remove()
       self.emptyCells:push(cell)
     end
+
+    remaining = remaining - nMoved
+    if remaining <= 0 then
+      goto done
+    end
   end
+
+  ::done::
 
   self:updateCellCounts()
   rednet.broadcast(messages.serverIndexFull(

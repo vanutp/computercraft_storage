@@ -49,6 +49,7 @@ function StorageGui:draw()
 
   local resultsBoxOffset = 1
   for i, item in ipairs(self.searchResults) do
+    -- TODO: don't do unnecessary iterations
     local drawY = resultsBoxOffset + i - self.scrollPos
     if drawY <= resultsBoxOffset then
       goto nextResult
@@ -63,7 +64,13 @@ function StorageGui:draw()
     else
       term.setBackgroundColor(colors.black)
     end
+    term.setTextColor(colors.white)
     term.write(item.displayName .. " (" .. tostring(item.count) .. ")")
+    
+    term.setCursorPos(w - 3 + 1, drawY)
+    term.setBackgroundColor(colors.lightBlue)
+    term.setTextColor(colors.black)
+    term.write("14*")
 
     ::nextResult::
   end
@@ -144,7 +151,16 @@ function StorageGui:onEvent(eventData)
     self.isLoading = true
     table.insert(self.chosenResults, selected.key)
     self:draw()
-    self.index:export(self.container, selected.key)
+    local w, h = term.getSize()
+    if x == w - 2 then
+      self.index:export(self.container, selected.key, 64 * 1)
+    elseif x == w - 1 then
+      self.index:export(self.container, selected.key, 64 * 4)
+    elseif x == w then
+      self.index:export(self.container, selected.key)
+    else
+      self.index:export(self.container, selected.key, 8)
+    end
     self.isLoading = false
   elseif event == "redstone" then
     local newChestOpen = redstone.getInput(self.containerPos)

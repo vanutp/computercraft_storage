@@ -43,12 +43,13 @@ return {
       fromContainer = fromContainer,
     }
   end,
-  -- clientExportRequest(toContainer: str, itemKey: str)
-  clientExportRequest = function (toContainer, itemKey)
+  -- clientExportRequest(toContainer: str, itemKey: str, count: int | nil)
+  clientExportRequest = function (toContainer, itemKey, count)
     return {
       type = "clientExportRequest",
       toContainer = toContainer,
       itemKey = itemKey,
+      count = count,
     }
   end,
 }

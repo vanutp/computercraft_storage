@@ -50,9 +50,9 @@ function LocalStorageIndex:import(container)
   rednet.broadcast(messages.clientImportRequest(containerName))
 end
 
-function LocalStorageIndex:export(container, key)
+function LocalStorageIndex:export(container, key, count)
   local containerName = peripheral.getName(container)
-  rednet.broadcast(messages.clientExportRequest(containerName, key))
+  rednet.broadcast(messages.clientExportRequest(containerName, key, count))
 end
 
 return LocalStorageIndex
