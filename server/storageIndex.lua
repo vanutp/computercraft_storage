@@ -34,6 +34,7 @@ function StorageIndex.new(blacklist)
 
   self.blacklist = blacklist
   self.cells = {}
+  self.initialized = false
   self:loadItems()
   rednet.broadcast(messages.serverInit())
   self.startupTimerId = os.startTimer(1)
@@ -41,14 +42,19 @@ function StorageIndex.new(blacklist)
   return self
 end
 
-function StorageIndex:init()
-  self.cells = StorageCell.allExcept(self.blacklist)
-  self:loadItems()
+function StorageIndex:broadcastIndex()
   rednet.broadcast(messages.serverIndexFull(
     self.usedCellCount,
     self.totalCellCount,
     self.metadata
   ))
+end
+
+function StorageIndex:init()
+  self.cells = StorageCell.allExcept(self.blacklist)
+  self:loadItems()
+  self.initialized = true
+  self:broadcastIndex()
   os.queueEvent("localUpdate")
 end
 
@@ -66,6 +72,9 @@ function StorageIndex:onMessage(message)
   if message.type == "clientInit" then
     for _, name in ipairs(message.blacklist) do
       table.insert(self.blacklist, name)
+    end
+    if self.initialized then
+      self:broadcastIndex()
     end
   elseif message.type == "clientImportRequest" then
     -- TODO: cache peripherals?
@@ -199,12 +208,7 @@ function StorageIndex:import(container)
   end
 
   self:updateCellCounts()
-  -- TODO: delta
-  rednet.broadcast(messages.serverIndexFull(
-    self.usedCellCount,
-    self.totalCellCount,
-    self.metadata
-  ))
+  self:broadcastIndex()
 end
 
 function StorageIndex:export(container, key, count)
@@ -260,11 +264,7 @@ function StorageIndex:export(container, key, count)
   ::done::
 
   self:updateCellCounts()
-  rednet.broadcast(messages.serverIndexFull(
-    self.usedCellCount,
-    self.totalCellCount,
-    self.metadata
-  ))
+  self:broadcastIndex()
 end
 
 return StorageIndex
