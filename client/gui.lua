@@ -70,7 +70,7 @@ function StorageGui:draw()
     term.setCursorPos(w - 3, drawY)
     term.setBackgroundColor(colors.lightBlue)
     term.setTextColor(colors.black)
-    term.write(" 14*")
+    term.write(" 18*")
 
     ::nextResult::
   end
@@ -150,11 +150,11 @@ function StorageGui:onEvent(eventData)
     if x == w - 2 then
       count = 64 * 1
     elseif x == w - 1 then
-      count = 64 * 4
+      count = 64 * 8
     elseif x == w then
       count = math.huge
     else
-      count = 64 * 8
+      count = 64 * 4
     end
     if self.chosenResults[selected.key] or 0 >= count then
       return

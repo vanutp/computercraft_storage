@@ -49,25 +49,4 @@ function StorageCell:import(from, fromSlot, limit)
   end)
 end
 
-function StorageCell.allExcept(blacklist)
-  local cells = {}
-  
-  for _, name in ipairs(peripheral.getNames()) do
-    if peripheral.hasType(name, 'inventory')
-      and not utils.contains(blacklist, name)
-    then
-      local container = peripheral.wrap(name)
- 
-      for slot = 1, container.size() do
-        table.insert(
-          cells,
-          StorageCell.new(container, slot)
-        )
-      end
-    end
-  end
-  
-  return cells
-end
-
 return StorageCell

@@ -34,6 +34,7 @@ function StorageIndex.new(blacklist)
 
   self.blacklist = blacklist
   self.cells = {}
+  self.itemStorages = {}
   self.initialized = false
   self:loadItems()
   rednet.broadcast(messages.serverInit())
@@ -51,7 +52,26 @@ function StorageIndex:broadcastIndex()
 end
 
 function StorageIndex:init()
-  self.cells = StorageCell.allExcept(self.blacklist)
+  self.cells = {}
+
+  for _, name in ipairs(peripheral.getNames()) do
+    if utils.contains(self.blacklist, name) then
+      goto continue
+    end
+    if peripheral.hasType(name, 'inventory') then
+      local container = peripheral.wrap(name)
+
+      for slot = 1, container.size() do
+        table.insert(
+          self.cells,
+          StorageCell.new(container, slot)
+        )
+      end
+    elseif peripheral.hasType(name, 'item_storage') then
+      table.insert(self.itemStorages, peripheral.wrap(name))
+    end
+    ::continue::
+  end
   self:loadItems()
   self.initialized = true
   self:broadcastIndex()
@@ -87,9 +107,8 @@ function StorageIndex:onMessage(message)
 end
 
 function StorageIndex:updateCellCounts()
-  self.usedCellCount
-    = utils.sum(self.fullCells, function(el) return el.length end)
-    + utils.sum(self.nonFullCells, function(el) return el.length end)
+  self.usedCellCount = utils.sum(self.fullCells, function(el) return el.length end)
+      + utils.sum(self.nonFullCells, function(el) return el.length end)
   self.totalCellCount = #self.cells
 end
 
@@ -99,6 +118,14 @@ function StorageIndex:loadItems()
   self.emptyCells = LinkedList.new()
   self.metadata = {}
 
+  local function updateMetadata(key, detail)
+    if self.metadata[key] == nil then
+      self.metadata[key] = getItemMeta(detail)
+    else
+      self.metadata[key].count = self.metadata[key].count + detail.count
+    end
+  end
+
   for _, cell in ipairs(self.cells) do
     local detail = cell.detail
 
@@ -106,24 +133,23 @@ function StorageIndex:loadItems()
       self.emptyCells:push(cell)
     else
       local key = getItemKey(detail)
-
-      if self.metadata[key] == nil then
-        self.metadata[key] = getItemMeta(detail)
-      else
-        self.metadata[key].count
-          = self.metadata[key].count
-            + detail.count
-      end
-
+      updateMetadata(key, detail)
       local cells = detail.count == detail.maxCount
-        and self.fullCells
-        or self.nonFullCells
+          and self.fullCells
+          or self.nonFullCells
 
       if cells[key] == nil then
         cells[key] = LinkedList.new()
       end
 
       cells[key]:push(cell)
+    end
+  end
+
+  for _, storage in ipairs(self.itemStorages) do
+    for _, detail in ipairs(storage.items()) do
+      local key = getItemKey(detail)
+      updateMetadata(key, detail)
     end
   end
 
@@ -189,8 +215,8 @@ function StorageIndex:import(container)
         node:remove()
 
         local cells = cell:isFull()
-          and self.fullCells
-          or  self.nonFullCells
+            and self.fullCells
+            or self.nonFullCells
 
         if cells[key] == nil then
           cells[key] = LinkedList.new()
@@ -212,7 +238,7 @@ function StorageIndex:import(container)
 end
 
 function StorageIndex:export(container, key, count)
-  local remaining = count or (64 * 54)
+  local remaining = count or math.huge
   local itemMeta = self.metadata[key]
   if self.fullCells[key] == nil then
     goto nonFull
@@ -241,7 +267,7 @@ function StorageIndex:export(container, key, count)
   ::nonFull::
 
   if self.nonFullCells[key] == nil then
-    goto done
+    goto readonly
   end
 
   for node in self.nonFullCells[key]:iter() do
@@ -255,6 +281,25 @@ function StorageIndex:export(container, key, count)
       self.emptyCells:push(cell)
     end
 
+    remaining = remaining - nMoved
+    if remaining <= 0 then
+      goto done
+    end
+  end
+
+  ::readonly::
+
+  -- TODO: only export from storages containing this
+  for _, storage in ipairs(self.itemStorages) do
+    local nMoved = storage.pushItem(
+      peripheral.getName(container),
+      {
+        name = itemMeta.name,
+        nbt = itemMeta.nbt,
+      },
+      remaining
+    )
+    itemMeta.count = itemMeta.count - nMoved
     remaining = remaining - nMoved
     if remaining <= 0 then
       goto done
