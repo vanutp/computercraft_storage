@@ -10,7 +10,7 @@ return {
   end,
 
   sContains = function(string, sub)
-    return string.find(string, sub) ~= nil
+    return string.find(string, sub, nil, true) ~= nil
   end,
 
   copyFields = function(tbl, fields)
