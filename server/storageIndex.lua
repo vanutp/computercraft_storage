@@ -291,13 +291,17 @@ function StorageIndex:export(container, key, count)
 
   -- TODO: only export from storages containing this
   for _, storage in ipairs(self.itemStorages) do
+    local requestAmount = remaining
+    if remaining == math.huge then
+      requestAmount = nil
+    end
     local nMoved = storage.pushItem(
       peripheral.getName(container),
       {
         name = itemMeta.name,
         nbt = itemMeta.nbt,
       },
-      remaining
+      requestAmount
     )
     itemMeta.count = itemMeta.count - nMoved
     remaining = remaining - nMoved
